@@ -1751,7 +1751,9 @@ Store = Ember.Object.extend({
     @return {String} if the adapter can generate one, an ID
   */
   _normalizeTypeKey: function(key) {
-    return camelize(singularize(key));
+    //return camelize(singularize(key));
+    // defer normalization to the container
+    return this.container.normalize(key);
   }
 });
 
