@@ -471,7 +471,7 @@ const JSONAPISerializer = JSONSerializer.extend({
   serializeHasMany(snapshot, json, relationship) {
     var key = relationship.key;
 
-    if (this._shouldSerializeHasMany(snapshot, key, relationship)) {
+    if (this.shouldSerializeHasMany(snapshot, key, relationship)) {
       var hasMany = snapshot.hasMany(key);
       if (hasMany !== undefined) {
 
