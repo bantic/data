@@ -7,6 +7,8 @@ import DS from 'ember-data';
 
 import isEnabled from 'ember-data/-private/features';
 
+import testInDebug from 'dummy/tests/helpers/test-in-debug';
+
 var Post, post, Comment, comment, Favorite, favorite, env;
 var run = Ember.run;
 
@@ -201,7 +203,7 @@ test("serializeHasMany omits unknown relationships on pushed record", function(a
   assert.ok(!json.hasOwnProperty("comments"), "Does not add the relationship key to json");
 });
 
-test("shouldSerializeHasMany", function(assert) {
+testInDebug("shouldSerializeHasMany", function(assert) {
 
   run(function() {
     post = env.store.createRecord('post', { title: "Rails is omakase", id: "1" });
