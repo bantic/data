@@ -16,6 +16,91 @@ module('unit/model/relationships - DS.hasMany', {
   }
 });
 
+test('xxx computed that depends on async:false relationship', function(assert) {
+  let Post = DS.Model.extend({
+    comments: DS.hasMany('comment', {async: false}),
+    approvedComments: Ember.computed.filterBy('comments', 'status', 'approved'),
+    serverApprovedCommentsCount: DS.attr('number'),
+    approvedCommentCount: Ember.computed('approvedComments.length', 'serverApprovedComments', function() {
+      if (this.hasMany('comments').value()) {
+        return this.get('approvedComments.length');
+      } else {
+        return this.get('serverApprovedCommentsCount');
+      }
+    })
+  });
+
+  let Comment = DS.Model.extend({
+    status: DS.attr('string')
+  });
+
+  env.registry.register('model:post', Post);
+  env.registry.register('model:comment', Comment);
+
+  env.adapter.shouldBackgroundReloadRecord = () => false;
+
+  let { store } = env;
+
+  run(() => {
+    store.push({
+      data: [{
+        type: 'post', id: 'p1',
+        attributes: {
+          serverApprovedCommentsCount: 1
+        }
+      }]
+    });
+  });
+
+  return run(() => store.findRecord('post', 'p1')).then(post => {
+    assert.ok(!post.hasMany('comments').value(), 'after initial find - comments hasMany not loaded');
+    assert.equal(post.get('serverApprovedCommentsCount'), 1, 'after initial find - serverApprovedCommentsCount');
+    assert.equal(post.get('approvedCommentCount'), 1, 'after initial find - approvedCommentCount');
+
+    run(() => {
+      store.push({
+        data: [{
+          type: 'post', id: 'p1',
+          attributes: {
+            serverApprovedCommentsCount: 1
+          },
+          relationships: {
+            comments: {
+              data: [{
+                id: 'c1', type: 'comment'
+              }]
+            }
+          }
+        }],
+        included: [{
+          type: 'comment', id: 'c1',
+          attributes: { status: 'approved' }
+        }]
+      });
+    });
+
+    return run(() => store.findRecord('post', 'p1')).then(post => {
+      assert.ok(post.hasMany('comments').value(), 'after pushing related comments - comments hasMany are now loaded');
+      assert.equal(post.get('serverApprovedCommentsCount'), 1, 'after pushing related comments - serverApprovedCommentsCount');
+      assert.equal(post.get('approvedCommentCount'), 1, 'after pushing related comments - approvedCommentCount');
+
+      // Un-commenting this line causes the failing assertion below to pass
+      // assert.equal(post.get('approvedComments.length'), 1, 'after pushing related comments - approvedComments.length');
+
+      run(() => {
+        let comment = post.get('comments.firstObject');
+        comment.set('status', 'rejected');
+      });
+
+      assert.equal(post.get('serverApprovedCommentsCount'), 1, 'after mutating comments.firstObject.status - serverApprovedCommentsCount');
+      assert.equal(post.get('approvedComments.length'), 0, 'after mutating comments.firstObject.status - approvedComments.length');
+
+      // This assertion fails:
+      assert.equal(post.get('approvedCommentCount'), 0, 'after mutating comments.firstObject.status - approvedCommentCount');
+    });
+  });
+});
+
 test('hasMany handles pre-loaded relationships', function(assert) {
   assert.expect(13);
 
